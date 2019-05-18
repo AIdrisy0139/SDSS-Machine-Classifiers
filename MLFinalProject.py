@@ -11,12 +11,14 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
+from mpl_toolkits.mplot3d import Axes3D
 #Model Imports
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn import svm
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import AdaBoostClassifier
 
 def plot_decision_regions(X, y, classifier, test_idx=None, resolution=0.02):
 
@@ -169,6 +171,16 @@ def plotData(data):
         scatterpoints=1, loc="lower left", fontsize=10
     )
 
+    fig = plt.figure("3D")
+    fig.suptitle("THE DATA")
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(stars.T[0],stars.T[1],stars.T[5] ,color="red",marker="x")
+    ax.scatter(quasars.T[0],quasars.T[1],quasars.T[5] ,color="green",marker="o")
+    ax.scatter(galaxies.T[0],galaxies.T[1],galaxies.T[5] ,color="blue",marker="^")
+    ax.set_xlabel("U Values")
+    ax.set_ylabel("G Value")
+    ax.set_zlabel("Redshift")
+    ax.legend(["Star","Quasar","Galaxy"])
     #plt.figure("Stars, Galaxies, and Quasars")
 def getAccuracy(A,B):
     correct = 0
@@ -209,25 +221,10 @@ def kNearest(xTrain,xTest, yTrain,yTest,neighbors):
 
     return modelA,modelAPredict
 
-    '''
-    modelB = KNeighborsClassifier(n_neighbors = 100)
-    modelB.fit(xTrain,yTrain)
-    modelBPredict = modelB.predict(xTest)
-    print(getAccuracy(yTest,modelBPredict))
 
-    modelC = KNeighborsClassifier(n_neighbors = 500)
-    modelC.fit(xTrain,yTrain)
-    modelCPredict = modelC.predict(xTest)
-    print(getAccuracy(yTest,modelCPredict))
-    '''
-
-def trainKNNTwoFeatures(k):
+def trainKNNTwoFeatures(xTrain,xTest,yTrain,yTest,k,f):
     global dataTable
-    xTrain = dataTable["xStdTrain"]
-    xTest = dataTable["xStdTest"]
-    yTrain = dataTable["yTrain"]
-    yTest = dataTable["yTest"]
-    fNum = 6
+    fNum = f
     kNearestArray = []
     kNNPredictArray = []
     for i in range(0,fNum):
@@ -243,35 +240,65 @@ def trainKNNTwoFeatures(k):
 
     return kNNPredictArray
     
+def slimKNNTwoFeatures(xTrain,xTest,yTrain,yTest,k,f):
+    headers = ["u","g","r","i","z","redshift"]
+    fNum = f
+    testScores=[]
+    trainScores=[]
+    for i in range(0,fNum):
+        for j in range(i+1,fNum):
+            xTrainFeatures = xTrain[:,[i,j]]
+            xTestFeatures = xTest[:,[i,i]]
+            model, kNNPredict = kNearest(xTrainFeatures,xTestFeatures,yTrain,yTest,k)
+            modelScore = model.score(xTestFeatures,yTest)
+            trainScore = model.score(xTrainFeatures,yTrain)
+            print("Axis 1: " + headers[i] +"  Axis 2:"+ headers[j] + "  Accuracy: "+ str(modelScore))
+            
+            trainScores.append(trainScore)
+            testScores.append(modelScore)
 
-def trainKNNAllFeatures(k): 
-    global dataTable
-    model,pred = kNearest(dataTable["xStdTrain"],dataTable["xStdTest"],dataTable["yTrain"],dataTable["yTest"],k)
-    return getAccuracy(dataTable["yTest"],pred)
+    return getAverage(trainScores),getAverage(testScores)
+
 
 def accVersusK():
     global dataTable
+    '''
+    testSubX = dataTable["xStdTest"][:,[sliceA,sliceB]]
+    trainSubX = dataTable["xStdTrain"][:,[sliceA,sliceB]]
+    '''
     print("accVersusK")
-    allAcc = []
+    allAccTrain = []
+    allAccTest = []
     low = 50
     up = 1000
     step = 100
     xAxis = range(low,up,step)
 
     for i in range(low,up,step):
-        preds = trainKNNTwoFeatures(i)
-        currAcc = 0
-        for p in preds:
-            currAcc += getAccuracy(p,dataTable["yTest"])
-        avgAcc = currAcc/15
-        allAcc.append(avgAcc)
+        #model,preds = kNearest(trainSubX,testSubX,yTrain,yTest,i)
+        avgAccTrain,avgAccTest = slimKNNTwoFeatures(dataTable["xStdTrain"],dataTable["xStdTest"],dataTable["yTrain"],dataTable["yTest"],i,6)
+        allAccTrain.append(avgAccTrain)
+        allAccTest.append(avgAccTest)
 
     plt.figure("Accuracy vs Neighbor Count (K)")
     plt.suptitle("Accuracy vs Neighbor Count (K)")
-    plt.plot(xAxis,allAcc)
+    plt.plot(xAxis,allAccTest,color="orange")
+    plt.plot(xAxis,allAccTrain,color="blue")
+    plt.legend(["Testing Accuracy","Training Accuracy"])
+    plt.xlabel("K: Neighbor Count")
+    plt.ylabel("Accuracy")
     #print(allAcc)
     #print(preds)
-
+'''
+def trainKNNAllFeatures(xTrain,xTest,yTrain,yTest,k): 
+    global dataTable
+    model,pred = kNearest(dataTable["xStdTrain"],dataTable["xStdTest"],dataTable["yTrain"],dataTable["yTest"],k)
+    return getAccuracy(dataTable["yTest"],pred)
+'''
+def trainKNNAllFeatures(xTrain,xTest,yTrain,yTest,k): 
+    global dataTable
+    model,pred = kNearest(xTrain,xTest,yTrain,yTest,k)
+    return getAccuracy(yTest,pred)
 '''
 ----------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------------------
@@ -325,14 +352,14 @@ def trainSVMAllFeatures(c):
     #for key in predictions():
     #    print("The {} Model has accuracy of {}".format(key,getAccuracy(predictions[key])))
 
-def accVersusC():
+def accVersusC(lb,ub,s):
     print("accVersusC")
     linearPreds = []
     polyPreds = []
     sigPreds=[]
-    lowBound = 10
-    upBound = 50
-    step = 10
+    lowBound = lb#10
+    upBound = ub#50
+    step = s#10
     for i in range(lowBound,upBound,step):
         preds = trainSVMAllFeatures(i)
         linearPreds.append(preds[0])
@@ -355,33 +382,139 @@ def accVersusC():
     plt.legend(["Linear","Polynomial","Sigmoid"])
 
 
+'''
+----------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------
 
+DECISION TREE FUNCTIONS
+
+-------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------
+
+'''
+
+def dTree(xTrain,xTest,yTrain,yTest,crit,depth):
+    model = DecisionTreeClassifier(criterion=crit,max_depth=depth,random_state=1)
+    model.fit(xTrain,yTrain)
+
+    preds  = model.predict(xTest)
+
+    trainingScore = model.score(xTrain,yTrain)
+    testingScore = model.score(xTest,yTest)
+    acc = getAccuracy(yTest,preds)
+    #print("Accuracy of D-Tree with {} Empurity = {} at MaxDepth = {}".format(crit,acc))
+    return trainingScore,testingScore
+
+def treeRunner(xTrain,xTest,yTrain,yTest,maxDepth):
+    print("GINI Impurity Testing")
+    print("Depth || Training Score || Testing Score")
+    giniTrain = []
+    giniTest=[]
+    for i in range(1,maxDepth):
+        trainScore, testScore = dTree(xTrain,xTest,yTrain,yTest,"gini",i)
+        giniTrain.append(trainScore)
+        giniTest.append(testScore)
+        print(i,trainScore,testScore)
+
+    print()
+    print("ENTROPY Impurity Testing")
+    print("Depth || Training Score || Testing Score")
+    entropyTrain=[]
+    entropyTest=[]
+    for i in range(1,maxDepth):
+        trainScore, testScore =dTree(xTrain,xTest,yTrain,yTest,"entropy",i)
+        entropyTest.append(testScore)
+        entropyTrain.append(trainScore)
+        print(i,trainScore,testScore)
+    
+    xAxis = range(1,maxDepth)
+    plt.figure("Decision Tree Scores")
+    plt.suptitle("Decision Tree Scores")
+    plt.plot(xAxis,entropyTest, color="red")
+    plt.plot(xAxis,entropyTrain,color = "orange")
+    plt.xlabel("Depth")
+    plt.ylabel("Accuracy")
+
+    plt.plot(xAxis,giniTest, color="purple")
+    plt.plot(xAxis,giniTrain, color = "blue")
+    plt.legend(["Entropy Test"," Entropy Train","Gini Test","Gini Train"])
+'''
+----------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------
+
+ADA BOOST CLASSIFIER FUNCTIONS
+
+-------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------
+
+'''
+def trainAdaBoost(xTrain,xTest,yTrain,yTest,est,nu):
+    ada = AdaBoostClassifier(n_estimators = est,learning_rate=nu ,random_state=0 )
+    ada.fit(xTrain,yTrain)
+
+    return ada.score(xTest,yTest)
+
+def iterAdaOnEstimators(maxEst,step):
+    xTrain = dataTable["xStdTrain"]
+    xTest = dataTable["xStdTest"]
+    yTrain = dataTable["yTrain"]
+    yTest = dataTable["yTest"]
+    score = []
+    xAxis = range(50,maxEst,step) 
+    for i in xAxis:
+        score.append(trainAdaBoost(xTrain,xTest,yTrain,yTest,i,1.0))
+    
+    plt.figure("Accuracy versus Estimator Count")
+    plt.suptitle("Accuracy versus Estimator Count")
+    plt.plot(xAxis, score)
+
+def iterAdaOnNu(maxNu,step):
+    xTrain = dataTable["xStdTrain"]
+    xTest = dataTable["xStdTest"]
+    yTrain = dataTable["yTrain"]
+    yTest = dataTable["yTest"]
+    score = []
+    xAxis = range(1,maxNu,step)
+    for i in xAxis:
+        score.append(trainAdaBoost(xTrain,xTest,yTrain,yTest,100,i))
+    
+    plt.figure("Accuracy versus Learning Rate Max:{}, Step:{}".format(maxNu,step))
+    plt.suptitle("Accuracy versus Learning Rate Max:{}, Step:{}".format(maxNu,step))
+    plt.plot(xAxis,score)
+        
 
 def main():
     allData = lockAndLoad()
     #plotAverages(allData)
+    xTrain = dataTable["xStdTrain"]
+    xTest = dataTable["xStdTest"]
+    yTrain = dataTable["yTrain"]
+    yTest = dataTable["yTest"]
+    #x = kNearest(dataTable["xStdTrain"],dataTable["xStdTest"],dataTable["yTrain"],dataTable["yTest"],50)
     
-    # Start Training Models
-    #trainKNNTwoFeatures(50)
+    #Start Training Models
+    print("KNN250")
+    #trainKNNTwoFeatures(dataTable["xStdTrain"],dataTable["xStdTest"],dataTable["yTrain"],dataTable["yTest"],250,6)
+    print("knn500")
+    #trainKNNTwoFeatures(500)
     #allData['xStdTrain'],allData["xStdTest"],allData['yTrain'],allData["yTest"]
     #print(trainKNNAllFeatures(50))
-
-    accVersusK()
-    #accVersusC()
+    plotData(allData["raw"])
+    #accVersusK()
+    #accVersusC(10,100,10)
 
     #trainSVMAllFeatures()
 
     #plotData(allData["raw"])
+    #giniPreds = dTree(xTrain,xTest,yTrain,yTest,"gini",10)
+    #entPreds = dTree(xTrain,xTest,yTrain,yTest,"entropy",10)
+    #treeRunner(xTrain,xTest,yTrain,yTest,15)
+
+    #trainAdaBoost(xTrain,xTest,yTrain,yTest,100,1.0)
+    #iterAdaOnNu(20,1)
+    #iterAdaOnEstimators(200,20)
     plt.show()
 
-    '''
-    print("---STAR---")
-    print(stars.shape)
-    print("---GALAXY---")
-    print(galaxies.shape)
-    print("---QSO---")
-    print(quasars.shape)
-    '''
 
     #TODO: Plot Averages
 main()
