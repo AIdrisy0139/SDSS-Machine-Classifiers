@@ -6,3 +6,9 @@ Using Various Machine Learning Classficiation Algorithims on the Sloan Digital S
 -Decision Trees
 -ADABoost Ensemble
 -Support Vector Classifier
+
+## Graphs
+
+### KNN 
+
+<img src="knn1.png"></img>
