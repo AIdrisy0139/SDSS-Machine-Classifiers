@@ -18,7 +18,7 @@ The data is from the Sloan Digital Sky Survey Data Release-14 (SDSS-DR14). Proce
 <img src="knn1.png"></img>
 
 ### Decision Tree
-<img src="d3.png"></img>
+<img src="D3.png"></img>
 
 ### ADABoost
 
@@ -28,4 +28,4 @@ The data is from the Sloan Digital Sky Survey Data Release-14 (SDSS-DR14). Proce
           
 ### Support Vector Classifier
 
-<img src="smv.png"></img>
+<img src="svm1.png"></img>
