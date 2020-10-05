@@ -6,9 +6,13 @@ Using Various Machine Learning Classficiation Algorithims on the Sloan Digital S
 The data is from the Sloan Digital Sky Survey Data Release-14 (SDSS-DR14). Processing the raw data left 6 features with three targets, Stars, Galaxies, and Quasars.
 
 ## Machines/Modles used so far
+
 -K Nearest Neighbors
+
 -Decision Trees
+
 -ADABoost Ensemble
+
 -Support Vector Classifier
 
 ## Graphs
